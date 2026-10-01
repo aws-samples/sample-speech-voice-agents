@@ -13,19 +13,20 @@
 # Strands Agents SDK + bidirectional streaming extras for Nova Sonic
 # https://pypi.org/project/strands-agents/
 #
-# Extras chosen to match the official Strands README:
-#   [bidi]    — runtime for Nova Sonic (aws-sdk-bedrock-runtime, smithy-aws-core)
-#   [bidi-io] — audio + terminal I/O (pyaudio, prompt-toolkit)
+# Extras chosen to match the official Strands bidi quickstart:
+#   [bidi]         — runtime for Nova Sonic (aws-sdk-bedrock-runtime, smithy-aws-core)
+#   [bidi-io]      — terminal transcript display (prompt-toolkit, rich)
+#   [bidi-pyaudio] — microphone/speaker I/O (pyaudio; needs PortAudio, see above)
 #
 # Avoid [bidi-all]: it aggregates sphinx/fastapi/google-genai/a2a-sdk that
 # we don't import, and on Python 3.13 the docs deps make pip's resolver
 # backtrack through dateutil + pydantic until it hits "resolution-too-deep".
-# The two extras below cover everything voice_assistant.py and
-# voice_tool_agent.py actually use (BidiAgent, BidiAudioIO,
-# BidiNovaSonicModel, stop_conversation, the event types). The other three
-# agents (stt_agent.py, tts_agent.py, voice_conversation.py) don't touch
-# the bidi stack at all but they share this dependency tree.
-strands-agents[bidi,bidi-io]==1.50.2
+# The three extras below cover everything voice_assistant.py and
+# voice_tool_agent.py actually use (BidiAgent, AudioIO, BedrockNovaSonicModel
+# from strands.bidi). The other three agents (stt_agent.py, tts_agent.py,
+# voice_conversation.py) don't touch the bidi stack at all but they share
+# this dependency tree. Nova Sonic needs Python 3.12+.
+strands-agents[bidi,bidi-io,bidi-pyaudio]==1.57.2
 
 # Loads the repo-root .env (AWS_PROFILE, AWS_REGION, STRANDS_MODEL_*) in shared/model.py
 # https://pypi.org/project/python-dotenv/
@@ -33,7 +34,7 @@ python-dotenv==1.2.4
 
 # AWS SDK - for Polly synthesis and general AWS calls
 # https://pypi.org/project/boto3/
-boto3==1.43.66
+boto3==1.43.107
 
 # Amazon Transcribe Streaming SDK is installed in a *second* step below
 # (see the note at the bottom of this file). It can't live here because

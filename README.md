@@ -22,12 +22,12 @@ This sample builds voice agents with the [Strands Agents SDK](https://strandsage
 ## Quick Start
 
 **Prerequisites:**
-- Python 3.10+
+- Python 3.12+ for the real-time agents (Nova Sonic's experimental AWS SDK client requires it); 3.10+ for the turn-based agents
 - An AWS account with Amazon Bedrock access
 - AWS credentials configured (`aws configure`) with permission to invoke models on Bedrock
 - A **microphone and headphones** (real-time agents) and an audio player such as `ffplay`, `afplay`, or `mpg123` (turn-based TTS)
 - **PortAudio** for the real-time agents: `brew install portaudio` (macOS) / `sudo apt-get install portaudio19-dev` (Linux)
-- **Amazon Nova Sonic** model access enabled for the real-time agents (available in `us-east-1`, `us-west-2`, `ap-northeast-1`)
+- **Amazon Nova Sonic** model access enabled for the real-time agents (available in `us-east-1`, `us-west-2`, `eu-north-1`, `ap-northeast-1`)
 
 >**Note:** A headset is required to have a voice conversation or the agent will interrupt itself
 
@@ -63,7 +63,7 @@ python voice_conversation.py  # multi-turn chat with spoken responses
 
 ## Real-Time Voice Agents
 
-The modern approach is **bidirectional streaming**: audio flows to and from the model continuously, so the agent listens and speaks at the same time and can be interrupted mid-sentence. These agents use [Amazon Nova Sonic](https://aws.amazon.com/ai/generative-ai/nova/speech/), a speech-to-speech model, through the Strands experimental bidirectional API.
+The modern approach is **bidirectional streaming**: audio flows to and from the model continuously, so the agent listens and speaks at the same time and can be interrupted mid-sentence. These agents use [Amazon Nova Sonic](https://aws.amazon.com/ai/generative-ai/nova/speech/), a speech-to-speech model, through the Strands bidirectional streaming API (`strands.bidi`).
 
 ### How It Works
 
@@ -77,18 +77,20 @@ The modern approach is **bidirectional streaming**: audio flows to and from the 
 
 ### Voice Assistant
 
-The [voice assistant](voice_assistant.py) is a full-duplex spoken conversation. A `BidiAgent` wraps a `BidiNovaSonicModel`, and `BidiAudioIO` wires the microphone and speakers to the stream:
+The [voice assistant](voice_assistant.py) is a full-duplex spoken conversation. A `BidiAgent` wraps a `BedrockNovaSonicModel`, and `AudioIO` wires the microphone and speakers to the stream and renders live transcripts in the terminal:
 
 ```python
-from strands.experimental.bidi import BidiAgent, BidiAudioIO
-from strands.experimental.bidi.models import BidiNovaSonicModel
+from strands.bidi import BidiAgent
+from strands.bidi.io import AudioIO
+from strands.bidi.models import BedrockNovaSonicModel
 
-model = BidiNovaSonicModel(client_config={"region": "us-east-1"})
+model = BedrockNovaSonicModel(model_id="amazon.nova-2-sonic-v1:0", region="us-east-1")
 agent = BidiAgent(model=model, system_prompt="You are a helpful voice assistant...")
+audio_io = AudioIO()
 await agent.run(inputs=[audio_io.input()], outputs=[audio_io.output()])
 ```
 
-> **Note** The system prompt steers the agent to keep responses short and conversational. Endpointing sensitivity is set to `LOW` to reduce false interruptions from background noise.
+> **Note** The system prompt steers the agent to keep responses short and conversational. Endpointing sensitivity is set to `LOW` (via the model's `params`, which map to Nova Sonic's `sessionStart` fields) to reduce false interruptions from background noise. Saying "stop conversation" runs a small `@tool(context=True)` that calls `agent.cancel()`, which ends `agent.run()` cleanly.
 
 ### Voice Agent with Tools
 

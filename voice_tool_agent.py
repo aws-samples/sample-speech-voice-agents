@@ -6,8 +6,9 @@ Demonstrates how to combine bidirectional streaming with function tools.
 
 Prerequisites:
     brew install portaudio              # macOS — provides the C library PyAudio needs
-    pip install -r requirements.txt     # installs strands-agents[bidi,bidi-io] + pins
+    pip install -r requirements.txt     # installs strands-agents[bidi,bidi-io,bidi-pyaudio] + pins
     # Enable Nova Sonic model access in Amazon Bedrock console
+    # Python 3.12+ (Nova Sonic's experimental AWS SDK client requires it)
 
 Learning objectives:
 - Understand how tools work with voice agents
@@ -26,20 +27,15 @@ from datetime import datetime
 
 from shared.model import get_region, report_aws_target
 
-# This agent needs Strands' experimental bidi stack, which comes from
-# strands-agents[bidi,bidi-io] in requirements.txt. If the import fails, the
-# user either skipped the install or hit PyAudio build issues on
+# This agent needs Strands' bidi stack, which comes from
+# strands-agents[bidi,bidi-io,bidi-pyaudio] in requirements.txt. If the import
+# fails, the user either skipped the install or hit PyAudio build issues on
 # Python 3.13. Either way, point them at the fix.
 try:
-    from strands import tool
-    from strands.experimental.bidi import BidiAgent, BidiAudioIO
-    from strands.experimental.bidi.models import BidiNovaSonicModel
-    from strands.experimental.bidi.tools import stop_conversation
-    from strands.experimental.bidi.types.events import (
-        BidiOutputEvent,
-        BidiTranscriptStreamEvent,
-    )
-    from strands.experimental.bidi.types.io import BidiOutput
+    from strands import LocalAgent, ToolContext, tool
+    from strands.bidi import BidiAgent
+    from strands.bidi.io import AudioIO
+    from strands.bidi.models import BedrockNovaSonicModel
 except ImportError as e:
     print("Error: Bidirectional streaming dependencies are not installed.")
     print(f"  ({e})")
@@ -55,14 +51,18 @@ except ImportError as e:
     sys.exit(1)
 
 
+# Nova Sonic 2 is the only model this agent supports; the bidi API requires an
+# explicit model id (no default), so name it once here.
+NOVA_SONIC_MODEL_ID = "amazon.nova-2-sonic-v1:0"
+
 # Nova Sonic is only available in a few regions. Start from the shared region
 # (.env AWS_REGION, then the AWS profile) and fall back to us-east-1 with a
 # notice if that region does not host the model, instead of failing on connect.
-NOVA_SONIC_REGIONS = ("us-east-1", "us-west-2", "ap-northeast-1")
+NOVA_SONIC_REGIONS = ("us-east-1", "us-west-2", "eu-north-1", "ap-northeast-1")
 
 
 def nova_sonic_region() -> str:
-    report_aws_target()
+    report_aws_target(NOVA_SONIC_MODEL_ID)
     region = get_region()
     if region in NOVA_SONIC_REGIONS:
         return region
@@ -71,16 +71,15 @@ def nova_sonic_region() -> str:
     return "us-east-1"
 
 
-class FinalTranscriptOutput(BidiOutput):
-    """Print only finalized transcripts (skip streaming previews)."""
-    
-    async def __call__(self, event: BidiOutputEvent) -> None:
-        if isinstance(event, BidiTranscriptStreamEvent) and event["is_final"]:
-            role = event["role"].capitalize()
-            # NOTE: prints live transcripts (including the user's own speech) to
-            # stdout for local use. Treat transcripts as potentially sensitive
-            # (PII) and filter/redact before logging in a production service.
-            print(f"{role}: {event['text']}")
+@tool(context=True)
+def stop_conversation(tool_context: ToolContext[LocalAgent]) -> str:
+    """End the conversation when the user asks to stop.
+
+    The bidi loop checks for cancellation after each tool group completes, so
+    agent.run() returns on its own once this tool has run.
+    """
+    tool_context.agent.cancel()
+    return "Ending the conversation. Goodbye!"
 
 
 # Allowlist for the calculator: only arithmetic on numbers. The tool input is
@@ -262,15 +261,14 @@ async def run_voice_tool_agent():
     print("  - 'What's 25 times 4?'")
     print("  - 'Set a reminder to take a break in 30 minutes'\n")
     
-    # Create model with LOW endpointing sensitivity to reduce false interruptions
-    # from background noise and speaker feedback
-    model = BidiNovaSonicModel(
-        provider_config={
-            "turn_detection": {
-                "endpointingSensitivity": "LOW"
-            }
-        },
-        client_config={"region": nova_sonic_region()}
+    # Create bidirectional streaming model (Nova Sonic via Bedrock).
+    # `params` is passed straight through as Nova Sonic's sessionStart fields.
+    # LOW endpointing sensitivity reduces false interruptions from background
+    # noise and speaker feedback. Use HIGH for quieter environments with headphones.
+    model = BedrockNovaSonicModel(
+        model_id=NOVA_SONIC_MODEL_ID,
+        region=nova_sonic_region(),
+        params={"turnDetectionConfiguration": {"endpointingSensitivity": "LOW"}},
     )
     
     # Create agent with tools
@@ -280,29 +278,22 @@ async def run_voice_tool_agent():
         system_prompt=SYSTEM_PROMPT
     )
     
-    # Setup I/O (custom text output shows only finalized transcripts, no previews)
-    audio_io = BidiAudioIO()
-    text_io = FinalTranscriptOutput()
+    # Microphone in, speakers out. AudioIO's output stream also renders live
+    # transcripts and the name of each tool the agent calls in the terminal, so
+    # no separate text output is needed. Those transcripts include the user's
+    # own speech: treat them as potentially sensitive (PII) and redact before
+    # logging in a real service.
+    audio_io = AudioIO()
     
     try:
         print("Connecting to Nova Sonic... (initial connection takes 5-15 seconds)")
+        print("When the 'Speak…' prompt appears, the assistant is listening.\n")
         
-        # Run the agent in a background task so we can detect when it's connected
-        agent_task = asyncio.create_task(agent.run(
+        # Runs until stop_conversation cancels the agent or Ctrl+C.
+        await agent.run(
             inputs=[audio_io.input()],
-            outputs=[audio_io.output(), text_io]
-        ))
-        
-        # Poll for connection - agent._started becomes True once start() completes
-        while not agent_task.done():
-            if getattr(agent, '_started', False):
-                print("✓ Connected! Start speaking - the assistant is listening.\n")
-                print("(Transcript will appear below as you converse)\n")
-                break
-            await asyncio.sleep(0.1)
-        
-        # Wait for the agent loop to finish (or raise exception)
-        await agent_task
+            outputs=[audio_io.output()],
+        )
     except asyncio.CancelledError:
         print("\nConversation cancelled by user")
     except Exception as e:
@@ -313,6 +304,8 @@ async def run_voice_tool_agent():
         print("  2. Confirm IAM permissions include bedrock:InvokeModelWithBidirectionalStream")
         print(f"  3. Check region - Nova Sonic is only in {', '.join(NOVA_SONIC_REGIONS)}")
     finally:
+        # run() stops the agent on exit; calling stop() again is a safe no-op
+        # and covers the path where run() never started.
         await agent.stop()
         print("Goodbye!")
 

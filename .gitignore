@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Environment variables (copy .env.example to .env; never commit .env)
+.env
+.env.local
+
+# AWS
+.aws/
+
+# Kiro
+.kiro/
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# AgentCore
+.agentcore/
+
+# Sample audio synthesized by stt_agent's `sample` command
+samples/*

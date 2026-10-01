@@ -1,0 +1,62 @@
+# Speech and Voice Agents - Dependencies
+#
+# Real-time bidirectional voice (voice_assistant.py, voice_tool_agent.py)
+# needs PortAudio at the system level. Install it before pip:
+#     macOS:  brew install portaudio
+#     Linux:  sudo apt-get install portaudio19-dev
+#
+# Two-step install (one pip invocation can't resolve the awscrt conflict
+# between strands-agents' bidi stack and amazon-transcribe — see note below):
+#     pip install -r requirements.txt
+#     pip install --no-deps "amazon-transcribe==0.6.4"
+
+# Strands Agents SDK + bidirectional streaming extras for Nova Sonic
+# https://pypi.org/project/strands-agents/
+#
+# Extras chosen to match the official Strands README:
+#   [bidi]    — runtime for Nova Sonic (aws-sdk-bedrock-runtime, smithy-aws-core)
+#   [bidi-io] — audio + terminal I/O (pyaudio, prompt-toolkit)
+#
+# Avoid [bidi-all]: it aggregates sphinx/fastapi/google-genai/a2a-sdk that
+# we don't import, and on Python 3.13 the docs deps make pip's resolver
+# backtrack through dateutil + pydantic until it hits "resolution-too-deep".
+# The two extras below cover everything voice_assistant.py and
+# voice_tool_agent.py actually use (BidiAgent, BidiAudioIO,
+# BidiNovaSonicModel, stop_conversation, the event types). The other three
+# agents (stt_agent.py, tts_agent.py, voice_conversation.py) don't touch
+# the bidi stack at all but they share this dependency tree.
+strands-agents[bidi,bidi-io]==1.50.2
+
+# Loads the repo-root .env (AWS_PROFILE, AWS_REGION, STRANDS_MODEL_*) in shared/model.py
+# https://pypi.org/project/python-dotenv/
+python-dotenv==1.2.4
+
+# AWS SDK - for Polly synthesis and general AWS calls
+# https://pypi.org/project/boto3/
+boto3==1.43.66
+
+# Amazon Transcribe Streaming SDK is installed in a *second* step below
+# (see the note at the bottom of this file). It can't live here because
+# every published version hard-pins awscrt to a range that doesn't overlap
+# what the bidi stack needs, which makes pip's resolver give up.
+
+# ─── Python 3.13 build-from-source guards ──────────────────────────────
+# These two pins exist to stop pip's resolver from backtracking into
+# versions whose source builds break on Python 3.13. Without them, the
+# install above quietly slides into PyAudio 0.2.13 (uses removed
+# pkgutil.ImpImporter) or PyYAML 6.0.0-6.0.2 (uses removed Cython
+# internals) and fails partway through with a confusing setuptools
+# traceback. The modern versions ship cp313 wheels.
+pyaudio==0.2.14
+pyyaml==6.0.3
+
+# ─── Why amazon-transcribe is installed separately ─────────────────────
+# Every published version of amazon-transcribe hard-pins awscrt to a
+# narrow range (0.6.4 wants awscrt~=0.26.1). The bidi stack above
+# transitively requires awscrt~=0.32.0 via aws-sdk-bedrock-runtime ->
+# smithy-http[awscrt]. These ranges don't overlap, so pip can't pick a
+# single awscrt that satisfies both. Installing amazon-transcribe with
+# --no-deps lets it ride on whatever awscrt the bidi stack already
+# resolved (currently 0.32.x). amazon-transcribe's actual runtime API
+# surface is the streaming HTTP/2 + event-stream code, which has been
+# stable across these awscrt releases.

@@ -34,7 +34,7 @@ As speech recognition and synthesis matured, voice systems became a **pipeline**
 
 ### Real-time speech-to-speech (2024-2025)
 
-The newest models collapse that pipeline. A speech-to-speech model like [Amazon Nova Sonic](https://aws.amazon.com/ai/generative-ai/nova/speech/) streams audio in and out continuously, handling understanding and generation in one bidirectional flow. Because it listens and speaks at the same time, the user can interrupt mid-sentence and the agent stops and adjusts. It also preserves things a transcript throws away: tone, pacing, and emphasis carry through the audio instead of being flattened into text and regenerated, so the result sounds less robotic.
+The newest models collapse that pipeline. A speech-to-speech model like [Amazon Nova Sonic](https://docs.aws.amazon.com/nova/latest/userguide/speech.html) streams audio in and out continuously, handling understanding and generation in one bidirectional flow. Because it listens and speaks at the same time, the user can interrupt mid-sentence and the agent stops and adjusts. It also preserves things a transcript throws away: tone, pacing, and emphasis carry through the audio instead of being flattened into text and regenerated, so the result sounds less robotic.
 
 ---
 
@@ -99,7 +99,7 @@ So far our agents have each done one job in one turn. In the [next post](https:/
 
 - [Companion sample: Speech and Voice Agents](README.md)
 - [AWS Prescriptive Guidance - Speech and voice agents](https://docs.aws.amazon.com/prescriptive-guidance/latest/agentic-ai-patterns/speech-and-voice-agents.html)
-- [Amazon Nova Sonic](https://aws.amazon.com/ai/generative-ai/nova/speech/)
+- [Amazon Nova Sonic](https://docs.aws.amazon.com/nova/latest/userguide/speech.html)
 - [Amazon Polly](https://aws.amazon.com/polly/)
 - [Amazon Transcribe](https://aws.amazon.com/transcribe/)
 - [Strands Agents Documentation](https://strandsagents.com/)

@@ -63,7 +63,7 @@ python voice_conversation.py  # multi-turn chat with spoken responses
 
 ## Real-Time Voice Agents
 
-The modern approach is **bidirectional streaming**: audio flows to and from the model continuously, so the agent listens and speaks at the same time and can be interrupted mid-sentence. These agents use [Amazon Nova Sonic](https://aws.amazon.com/ai/generative-ai/nova/speech/), a speech-to-speech model, through the Strands bidirectional streaming API (`strands.bidi`).
+The modern approach is **bidirectional streaming**: audio flows to and from the model continuously, so the agent listens and speaks at the same time and can be interrupted mid-sentence. These agents use [Amazon Nova Sonic](https://docs.aws.amazon.com/nova/latest/userguide/speech.html), a speech-to-speech model, through the Strands bidirectional streaming API (`strands.bidi`).
 
 ### How It Works
 
@@ -133,7 +133,7 @@ The [voice conversation agent](voice_conversation.py) is a multi-turn assistant 
 
 - [Companion blog post: Giving Agents a Voice](Giving%20Agents%20a%20Voice%20-%20Speech-to-Speech%20and%20the%20STT-TTS%20Pipeline.md)
 - [AWS Prescriptive Guidance - Speech and voice agents](https://docs.aws.amazon.com/prescriptive-guidance/latest/agentic-ai-patterns/speech-and-voice-agents.html)
-- [Amazon Nova Sonic](https://aws.amazon.com/ai/generative-ai/nova/speech/)
+- [Amazon Nova Sonic](https://docs.aws.amazon.com/nova/latest/userguide/speech.html)
 - [Amazon Polly](https://aws.amazon.com/polly/)
 - [Amazon Transcribe](https://aws.amazon.com/transcribe/)
 - [Strands Agents Documentation](https://strandsagents.com/)
